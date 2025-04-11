@@ -1,58 +1,68 @@
 #include "Parser.h"
 #include "CodeWriter.h"
+#include "StringProcessor.h"
 #include <fstream>
+#include <filesystem>
+#include <vector>
 
-const std::string FILE_LOCATION = "D:/SHEJIN/Programs/nand2tetris/projects/7/MemoryAccess/StaticTest/StaticTest.vm";
-
-std::string Trim(std::string text) {
-	int strBegin = text.find_first_not_of(' ');
-	if (strBegin == std::string::npos) return "";
-
-	int strEnd = text.find_last_not_of(' ');
-	int strRange = strEnd - strBegin + 1;
-	return text.substr(strBegin, strRange);
-}
-
-std::string GetFileName(std::string path) {
-	int nameStart = path.find_last_of('/')+1;
-	int nameEnd = path.find_last_of('.')-1;
-	int nameRange = nameEnd - nameStart + 1;
-	return path.substr(nameStart, nameRange);
-}
+const std::string FILE_LOCATION = "D:/SHEJIN/Programs/nand2tetris/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.vm";
 
 int main() {
-	std::ifstream inputFile(FILE_LOCATION);
-	std::string outputPath = FILE_LOCATION.substr(0, FILE_LOCATION.find_last_of('.') + 1) + "asm";
-	std::ofstream outputFile(outputPath);
-	if (!inputFile.is_open()) {
-		std::cerr << "Failed to Open Input File at: " << FILE_LOCATION << '\n';
-		return -1;
+	std::vector<std::filesystem::path> inputPaths;
+	std::string outputPath;
+	if (IsDirectory(FILE_LOCATION)) {
+		inputPaths.push_back(FILE_LOCATION + "/Sys.vm");
+		std::filesystem::path path(FILE_LOCATION);
+		outputPath = path.string() + '/' + path.filename().string() + ".asm";
+		for (const auto& entry : std::filesystem::directory_iterator(FILE_LOCATION)) {
+			std::filesystem::path path = entry.path();
+			if (path.extension().string() != ".vm" || path.filename().string() == "Sys.vm") continue;
+			inputPaths.push_back(path);
+		}
+	}
+	else {
+		inputPaths.push_back(std::filesystem::path(FILE_LOCATION));
+		outputPath = std::filesystem::path(FILE_LOCATION).replace_extension(std::filesystem::path(".asm")).string();
 	}
 
-	std::cout << "Translating .vm File at " << FILE_LOCATION << " to .asm File.\n";
+	std::ofstream outputFile(outputPath);
+	std::cout << "Translating .vm File(s) at " << FILE_LOCATION << " to .asm File.\n";
 
 	Parser parser;
 	CodeWriter writer;
-	writer.fileName = GetFileName(FILE_LOCATION);
 
-	std::string line;
-	while (std::getline(inputFile, line)) {
-		line = Trim(line);
-		if (line[0] == '/' || line == "") continue;
+	outputFile << "// Bootstrap Code\n";
+	outputFile << writer.WriteInit();
 
-		std::string comment = "// " + line + '\n';
-		outputFile << comment;
+	for (auto& path : inputPaths) {
+		std::ifstream inputFile(path.string());
+		if (!inputFile.is_open()) {
+			std::cerr << "Failed to Open Input File at: " << FILE_LOCATION << '\n';
+			return -1;
+		}
 
-		Instruction instruction = parser.Parse(line);
-		std::string code = instruction.arithmetic ? writer.WriteArithmetic(instruction) : writer.WritePushPop(instruction);
+		writer.fileName = path.filename().string();
 
-		outputFile << code;
+		std::string line;
+		while (std::getline(inputFile, line)) {
+			line = Trim(line);
+			if (line[0] == '/' || line == "") continue;
+
+			std::string comment = "// " + line + '\n';
+			outputFile << comment;
+
+			Instruction instruction = parser.Parse(line);
+			std::string code = writer.WriteCode(instruction);
+
+			outputFile << code;
+		}
+
+		inputFile.close();
 	}
 
-	inputFile.close();
 	outputFile.close();
-
 	std::cout << "Translation Complete! .asm File is Saved at: " << outputPath << '\n';
+
 
 	return 0;
 }

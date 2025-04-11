@@ -56,13 +56,14 @@
 	SP--		SP--		SP--
 	M=*SP		M=*SP		M=*SP
 	D=M-D		D=M-D		D=M-D
-	@lineNum	@lineNum	@lineNum
+	@LABEL_i	@LABEL_i	@LABEL_i
 	D;JEQ		D;JLT		D;JGT
 	*SP=0		*SP=0		*SP=0
-	@lineNum+1	@lineNum+1	@lineNum+1
+	@END_i		@END_i		@END_i
 	0;JMP		0;JMP		0;JMP
-	(lineNum)	(lineNum)	(lineNum)
+	(LABEL_i)	(LABEL_i)	(LABEL_i)	// (ARITHMETIC_TRUE_i)
 	*SP=1		*SP=1		*SP=1
+	(END_i)		(END_i)		(END_i)		// (ARITHMETIC_END_i)
 	SP++		SP++		SP++
 
 -------------------------------------------------
@@ -91,16 +92,18 @@
 	@SP			@SP			@SP
 	AM=M-1		AM=M-1		AM=M-1
 	D=M-D		D=M-D		D=M-D
-	@lineNum-5	@lineNum-5	@lineNum-5
+	@LABEL_i	@LABEL_i	@LABEL_i
 	D;JEQ		D;JLT		D;JGT
 	@SP			@SP			@SP
 	A=M			A=M			A=M
 	M=0			M=0			M=0
-	@lineNum-2	@lineNum-2	@lineNum-2
+	@END_i		@END_i		@END_i
 	0;JMP		0;JMP		0;JMP
+	(LABEL_i)	(LABEL_i)	(LABEL_i)
 	@SP			@SP			@SP
 	A=M			A=M			A=M
 	M=-1		M=-1		M=-1
+	(END_i)		(END_i)		(END_i)
 	@SP			@SP			@SP
 	M=M+1		M=M+1		M=M+1
 */
@@ -118,10 +121,20 @@ private:
 		{ "that", "THAT" },
 		{ "pointer", "THIS" },
 	};
-	int lineNum = 0;
+	int arJumpIndex = -1;
+	int returnIndex = -1;
 public:
 	std::string fileName = "";
 
+	std::string WriteInit();
+	std::string WriteCode(Instruction instruction);
 	std::string WriteArithmetic(Instruction instruction);
 	std::string WritePushPop(Instruction instruction);
+	std::string WriteLabel(Instruction instruction);
+	std::string WriteGoto(Instruction instruction);
+	std::string WriteIf(Instruction instruction);
+	std::string WriteCall(Instruction instruction);
+	std::string WriteFunction(Instruction instruction);
+	std::string WriteReturn(Instruction instruction);
+	void ResetCounters();
 };
